@@ -3,6 +3,24 @@ require 'io/console'
 class Board
   attr_accessor  :board, :current_player, :current_piece, :moves, :current_move
   def initialize
+    system("clear")
+    puts "Please enter 'load' to play an old game or 'new' for a new one."
+    input = ""
+    loop do
+      input = gets.chomp
+      break if input == "new" || input == "load"
+    end
+    if input == "new"
+      new_game
+      select_piece
+    else
+      load_game
+    end
+
+
+  end
+#file serializati
+  def new_game
     @board = [[],[],[],[],[],[],[],[]]
     @board[7][4] = King.new("light")
     @board[0][4] = King.new("dark")
@@ -47,9 +65,37 @@ class Board
     @moves = []
     @current_move = 0
   end
-  def valid? value
-    (value[0] >= 0 && value[0] < 8 && value[1] >= 0 && value[1] < 8) ? true : false
+  def save_game
+    File.open('saves/saved_game', 'w') do |file|
+      file.puts Marshal::dump(self)
+    end
+    puts "Saved!"
   end
+  def load_game
+    File.open('saves/saved_game', 'r') do |file|
+      if file.eof?
+        puts "There was no saved game!"
+        sleep 2
+        new_game
+        select_piece
+      else
+        old_game = Marshal::load(file)
+        @board = old_game.board
+        @current_player = old_game.current_player
+        @current_piece = old_game.current_piece
+        @moves = old_game.moves
+        @current_move = old_game.current_move
+        puts "Game Loaded"
+        if @moves.length == 0
+          select_piece
+        else
+          select_move
+        end
+      end
+
+    end
+  end
+#reset the class for the next player
   def change_player
     @current_player == "light" ? @current_player = "dark" : @current_player = "light"
   end
@@ -70,46 +116,13 @@ class Board
       end
     end
   end
-  def print_board
-    system("clear")
-    puts "Select a piece #{@current_player}'s!"
-    8.times do |i|
-      8.times do |j|
 
-        if @board[i][j].nil?
-          print "  "
-        elsif @board[i][j] == @current_piece
-          print "* "
-        else
-          case @board[i][j].class.to_s
-          when "Queen"
-            (@board[i][j].color == "light") ?  (print "♕ ") : (print "♛ ")
-          when "King"
-            (@board[i][j].color == "light") ?  (print "♔ ") : (print "♚ ")
-          when "Bishop"
-            (@board[i][j].color == "light") ?  (print "♗ ") : (print "♝ ")
-          when "Knight"
-            (@board[i][j].color == "light") ?  (print "♘ ") : (print "♞ ")
-          when "Rook"
-            (@board[i][j].color == "light") ?  (print "♖ ") : (print "♜ ")
-          when "Pawn"
-            (@board[i][j].color == "light") ?  (print "♙ ") : (print "♟ ")
-          else
-            print "  "
-          end
-        end
-
-      end
-      puts ""
-    end
-  end
 
 =begin
 I am honestly just copying this.
 I got it from http://www.alecjacobson.com/weblog/?p=75
 Thank you Alec Jacobson <3
 =end
-#gettings a piece
   def get_input
     begin
     old_state = `stty -g`
@@ -134,7 +147,26 @@ Thank you Alec Jacobson <3
     end
     return c
   end
+#assess game state
+  def victory?
+    count = 0
 
+    8.times do |i|
+      8.times do |j|
+        if @board[i][j].class.to_s == "King"
+          count+=1
+        end
+      end
+    end
+    (count == 2) ? (return false) : (return true)
+  end
+#declare victory
+  def victory
+    puts "#{self.current_player}'s win!"
+  end
+
+
+#gettings a piece
   def select_piece
 
     print_board
@@ -143,6 +175,15 @@ Thank you Alec Jacobson <3
       input = get_input
       case input
       when "\r"
+        generate_moves
+        if @moves.length > 0
+          @moves = []
+          break
+        end
+      when "s"
+        self.save_game
+        break
+      when "\e"
         break
       when "\e[C"
         get_next_piece
@@ -152,6 +193,7 @@ Thank you Alec Jacobson <3
         print_board
       end
     end
+    select_move if input =="\r"
   end
   def get_next_piece
     passed = false
@@ -205,36 +247,32 @@ Thank you Alec Jacobson <3
       end
     end
   end
-
-#getting a move
-  def print_board_moves
+  def print_board
     system("clear")
-    puts "Select a move #{@current_player}'s'!"
-    #puts "# of moves = #{@moves.length}"
-    temp_board = @moves[@current_move]
+    puts "Select a piece #{@current_player}'s!"
     8.times do |i|
       8.times do |j|
-        if temp_board[i][j] == @current_piece
-          print "* "
-        elsif temp_board[i][j].nil?
-          print "  "
-        else
 
-          case temp_board[i][j].class.to_s
-          when "Piece"
-            print "x "
+        if @board[i][j].nil?
+          print "  "
+        elsif @board[i][j] == @current_piece
+          print "* "
+        else
+          case @board[i][j].class.to_s
           when "Queen"
-            (temp_board[i][j].color == "light") ?  (print "♕ ") : (print "♛ ")
+            (@board[i][j].color == "light") ?  (print "♕ ") : (print "♛ ")
           when "King"
-            (temp_board[i][j].color == "light") ?  (print "♔ ") : (print "♚ ")
+            (@board[i][j].color == "light") ?  (print "♔ ") : (print "♚ ")
           when "Bishop"
-            (temp_board[i][j].color == "light") ?  (print "♗ ") : (print "♝ ")
+            (@board[i][j].color == "light") ?  (print "♗ ") : (print "♝ ")
           when "Knight"
-            (temp_board[i][j].color == "light") ?  (print "♘ ") : (print "♞ ")
+            (@board[i][j].color == "light") ?  (print "♘ ") : (print "♞ ")
           when "Rook"
-            (temp_board[i][j].color == "light") ?  (print "♖ ") : (print "♜ ")
+            (@board[i][j].color == "light") ?  (print "♖ ") : (print "♜ ")
           when "Pawn"
-            (temp_board[i][j].color == "light") ?  (print "♙ ") : (print "♟ ")
+            (@board[i][j].color == "light") ?  (print "♙ ") : (print "♟ ")
+          else
+            print "  "
           end
         end
 
@@ -242,7 +280,9 @@ Thank you Alec Jacobson <3
       puts ""
     end
   end
-  def select_move
+
+#getting a move
+  def generate_moves
     location = get_location_of_current_piece
     c = location[1]
     r = location[0]
@@ -499,12 +539,21 @@ Thank you Alec Jacobson <3
       end
 
     end
+  end
+  def select_move
+    generate_moves
     puts "Select a move #{@current_player}!"
     print_board_moves
+    input = ""
     loop do
       input = get_input
       case input
       when "\r"
+        break
+      when "s"
+        self.save_game
+        break
+      when "\e"
         break
       when "\e[C"
         get_next_move
@@ -514,7 +563,7 @@ Thank you Alec Jacobson <3
         print_board_moves
       end
     end
-    move_piece
+    move_piece if input == "\r"
   end
   def get_next_move
     @current_move += 1
@@ -546,6 +595,16 @@ Thank you Alec Jacobson <3
     @board[r1][c1] = nil
 
     print_board
+
+    if self.victory?
+      self.victory
+    else
+      self.moves = []
+      self.current_move = 0
+      self.change_player
+      self.get_new_current_piece
+      self.select_piece
+    end
   end
   def find_value
     8.times do |i|
@@ -559,30 +618,42 @@ Thank you Alec Jacobson <3
       end
     end
   end
+  def print_board_moves
+    system("clear")
+    puts "Select a move #{@current_player}'s!"
+    #puts "# of moves = #{@moves.length}"
 
-  def victory?
-    count = 0
-
+    temp_board = @moves[@current_move]
     8.times do |i|
       8.times do |j|
-        if @board[i][j].class.to_s == "King"
-          count+=1
+        if temp_board[i][j] == @current_piece
+          print "* "
+        elsif temp_board[i][j].nil?
+          print "  "
+        else
+
+          case temp_board[i][j].class.to_s
+          when "Piece"
+            print "x "
+          when "Queen"
+            (temp_board[i][j].color == "light") ?  (print "♕ ") : (print "♛ ")
+          when "King"
+            (temp_board[i][j].color == "light") ?  (print "♔ ") : (print "♚ ")
+          when "Bishop"
+            (temp_board[i][j].color == "light") ?  (print "♗ ") : (print "♝ ")
+          when "Knight"
+            (temp_board[i][j].color == "light") ?  (print "♘ ") : (print "♞ ")
+          when "Rook"
+            (temp_board[i][j].color == "light") ?  (print "♖ ") : (print "♜ ")
+          when "Pawn"
+            (temp_board[i][j].color == "light") ?  (print "♙ ") : (print "♟ ")
+          end
         end
+
       end
+      puts ""
     end
-    (count == 2) ? (return false) : (return true)
   end
 
 end
 x = Board.new
-
-loop do
-  x.select_piece
-  x.select_move
-  x.moves = []
-  x.current_move = 0
-  x.change_player
-  x.get_new_current_piece
-  break if x.victory?
-end
-puts "#{x.current_player}'s win!"
