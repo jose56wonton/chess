@@ -19,7 +19,7 @@ class Board
 
 
   end
-#file serializati
+#file serialization
   def new_game
     @board = [[],[],[],[],[],[],[],[]]
     @board[7][4] = King.new("light")
